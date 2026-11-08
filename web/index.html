@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Database Engine - Interactive Visualizer</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #121827;
+      --card-border: #1f293d;
+      --header-bg: #0d121f;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --purple: #a855f7;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --code-bg: #080c14;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #fff;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .btn {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0b0f19;
+      border-color: transparent;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #7dd3fc;
+    }
+
+    .btn-emerald {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    .btn-emerald:hover {
+      background: rgba(16, 185, 129, 0.25);
+    }
+
+    /* Main Grid Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      flex: 1;
+      height: calc(100vh - 61px);
+      overflow: hidden;
+    }
+
+    @media (max-width: 1024px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: auto;
+      }
+    }
+
+    /* Left Panel: Query & Control */
+    .left-panel {
+      border-right: 1px solid var(--card-border);
+      background: var(--header-bg);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      padding: 1.1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.65rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .presets-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+    }
+
+    .preset-chip {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-chip:hover {
+      border-color: var(--accent);
+      color: #fff;
+      background: #172133;
+    }
+
+    .preset-chip.span-2 {
+      grid-column: span 2;
+    }
+
+    /* SQL Editor */
+    .sql-input-wrap {
+      position: relative;
+      margin-bottom: 0.75rem;
+    }
+
+    textarea#sql-input {
+      width: 100%;
+      height: 90px;
+      background: var(--code-bg);
+      color: #38bdf8;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.65rem 0.8rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea#sql-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .editor-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hint-text {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Results */
+    .result-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .result-header {
+      padding: 0.6rem 0.85rem;
+      background: #0f1523;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+
+    .strategy-badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .strat-hash {
+      background: rgba(168, 85, 247, 0.18);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    .strat-bptree {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .strat-scan {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .result-body {
+      padding: 0.75rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    table.data-table th, table.data-table td {
+      padding: 0.4rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    table.data-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    table.data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .empty-state {
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    /* Right Panel: Visualizer Tabs */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .tabs-bar {
+      display: flex;
+      align-items: center;
+      padding: 0 1.2rem;
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--card-border);
+      gap: 0.5rem;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab-content {
+      flex: 1;
+      padding: 1.25rem;
+      overflow: auto;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* B+ Tree Visualizer */
+    .tree-meta-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .tree-stats {
+      display: flex;
+      gap: 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    .tree-stat-val {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .tree-canvas-container {
+      background: #080c14;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      min-height: 480px;
+      padding: 2rem 1.5rem;
+      position: relative;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .tree-level {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .tree-node-card {
+      background: #141c2e;
+      border: 2px solid #293854;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      padding: 0.6rem 0.8rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 90px;
+      transition: all 0.2s ease;
+    }
+
+    .tree-node-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .tree-node-card.is-leaf {
+      background: #0d2822;
+      border-color: #10b981;
+    }
+
+    .tree-node-card.highlight-node {
+      border-color: #fbbf24;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.35);
+    }
+
+    .node-header {
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .keys-row {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .key-slot {
+      padding: 0.35rem 0.65rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .key-slot:last-child {
+      border-right: none;
+    }
+
+    .is-leaf .key-slot {
+      color: #34d399;
+    }
+
+    .leaf-values-row {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      font-family: var(--font-mono);
+    }
+
+    .leaf-chain-bar {
+      margin-top: 1.5rem;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px dashed rgba(16, 185, 129, 0.35);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow-x: auto;
+    }
+
+    .chain-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--emerald);
+      white-space: nowrap;
+      margin-right: 0.5rem;
+    }
+
+    .chain-pill {
+      background: #0f231e;
+      border: 1px solid #10b981;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #6ee7b7;
+      white-space: nowrap;
+    }
+
+    .chain-arrow {
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    /* Hash Index Visualizer */
+    .hash-buckets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.85rem;
+    }
+
+    .hash-bucket-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.85rem;
+      transition: all 0.15s ease;
+    }
+
+    .hash-bucket-card:hover {
+      border-color: var(--purple);
+      box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+    }
+
+    .bucket-key {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #c084fc;
+      font-family: var(--font-mono);
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .bucket-rowids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .rowid-tag {
+      background: #231734;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    /* Benchmark Playground */
+    .bench-controls-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .slider-group {
+      flex: 1;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 0.4rem;
+      color: var(--text-muted);
+    }
+
+    .slider-label b {
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .bench-results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .bench-results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .bench-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+
+    .bench-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .bar-comparison {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .bar-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+    }
+
+    .bar-track {
+      background: #1e293b;
+      height: 14px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .bar-scan {
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    .bar-hash {
+      background: linear-gradient(90deg, #9333ea, #c084fc);
+    }
+
+    .bar-bptree {
+      background: linear-gradient(90deg, #059669, #34d399);
+    }
+
+    .speedup-callout {
+      margin-top: 1rem;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.6rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+
+    /* Explanation & Architecture Guide */
+    .guide-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+      font-size: 0.88rem;
+    }
+
+    .guide-card h3 {
+      font-size: 1.05rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .complexity-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .complexity-table th, .complexity-table td {
+      border: 1px solid var(--card-border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+
+    .complexity-table th {
+      background: #172133;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-icon">M</div>
+      <div>
+        <div class="brand-title">Mini Database Engine</div>
+        <div class="brand-subtitle">B+ Tree • Hash Index • Query Planner</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="pill-badge">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+        Online
+      </span>
+      <button class="btn btn-emerald" onclick="insertRandomUsers(5)">+ 5 Random Users</button>
+      <button class="btn" onclick="resetDatabase()">↺ Reset DB</button>
+    </div>
+  </header>
+
+  <!-- Application Body Grid -->
+  <div class="app-container">
+
+    <!-- Left Panel: SQL & Execution Plan -->
+    <div class="left-panel">
+
+      <!-- Query Presets -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>Quick Presets</span>
+          <span style="font-size: 0.7rem; color: var(--text-muted);">Click to load</span>
+        </div>
+        <div class="presets-grid">
+          <button class="preset-chip" onclick="setQuery('SELECT * FROM users')">All Users (Scan)</button>
+          <button class="preset-chip" onclick="setQuery('SELECT * FROM users WHERE id = 3')">Point Lookup (Hash)</button>
+          <button class="preset-chip" onclick="setQuery('SELECT * FROM users WHERE age BETWEEN 22 AND 28')">Range Scan (B+ Tree)</button>
+          <button class="preset-chip" onclick="setQuery('SELECT * FROM users WHERE age = 24')">Point Lookup (B+ Tree)</button>
+          <button class="preset-chip" onclick="setQuery('EXPLAIN SELECT * FROM users WHERE id = 3')">EXPLAIN Hash</button>
+          <button class="preset-chip" onclick="setQuery('EXPLAIN SELECT * FROM users WHERE age BETWEEN 20 AND 30')">EXPLAIN B+ Tree</button>
+          <button class="preset-chip span-2" onclick="setQuery('INSERT INTO users VALUES (11, \'Tara\', 26)')">INSERT Tara (age 26)</button>
+          <button class="preset-chip span-2" onclick="setQuery('DELETE FROM users WHERE id = 2')">DELETE User (id = 2)</button>
+        </div>
+      </div>
+
+      <!-- SQL Input -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>SQL Query Console</span>
+          <span class="hint-text">Ctrl + Enter to run</span>
+        </div>
+        <div class="sql-input-wrap">
+          <textarea id="sql-input" placeholder="SELECT * FROM users WHERE age BETWEEN 20 AND 30">SELECT * FROM users WHERE age BETWEEN 22 AND 28</textarea>
+        </div>
+        <div class="editor-controls">
+          <button class="btn btn-primary" onclick="executeQuery()">Execute Query</button>
+          <button class="btn" onclick="explainCurrentQuery()">Explain Plan</button>
+        </div>
+      </div>
+
+      <!-- Execution Result -->
+      <div class="panel-section" style="flex: 1;">
+        <div class="section-title">
+          <span>Execution Result</span>
+          <span id="elapsed-badge" class="hint-text" style="color: var(--accent);"></span>
+        </div>
+        <div class="result-card">
+          <div class="result-header">
+            <span id="plan-strategy-badge" class="strategy-badge strat-bptree">No query executed</span>
+            <span id="row-count-badge" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);"></span>
+          </div>
+          <div class="result-body" id="query-result-container">
+            <div class="empty-state">Execute a query above to inspect query plan & matching records.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Panel: Visualizer Tabs -->
+    <div class="right-panel">
+
+      <!-- Tabs Bar -->
+      <div class="tabs-bar">
+        <button class="tab-btn active" onclick="switchTab('tab-bptree')">🌳 B+ Tree Index</button>
+        <button class="tab-btn" onclick="switchTab('tab-hash')">⚡ Hash Index</button>
+        <button class="tab-btn" onclick="switchTab('tab-table')">📋 In-Memory Rows</button>
+        <button class="tab-btn" onclick="switchTab('tab-benchmark')">📊 Benchmark Playground</button>
+        <button class="tab-btn" onclick="switchTab('tab-guide')">💡 How It Works</button>
+      </div>
+
+      <!-- Tab 1: B+ Tree Visualizer -->
+      <div id="tab-bptree" class="tab-content active">
+        <div class="tree-meta-bar">
+          <div>
+            <span style="font-weight: 700; font-size: 0.95rem;">users(age) B+ Tree</span>
+            <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem;">Ordered balanced multi-way search tree</span>
+          </div>
+          <div class="tree-stats">
+            <div>Height: <span id="bpt-height" class="tree-stat-val">-</span></div>
+            <div>Max Keys / Node: <span id="bpt-maxkeys" class="tree-stat-val">3</span></div>
+            <div>Total Nodes: <span id="bpt-nodecount" class="tree-stat-val">-</span></div>
+          </div>
+        </div>
+
+        <div class="tree-canvas-container" id="bptree-container">
+          <!-- Tree nodes rendered dynamically -->
+        </div>
+
+        <!-- Sequential Leaf Chain View -->
+        <div class="leaf-chain-bar" id="leaf-chain-container">
+          <div class="chain-label">Linked Leaf Chain:</div>
+          <!-- Chain items dynamically rendered -->
+        </div>
+      </div>
+
+      <!-- Tab 2: Hash Index -->
+      <div id="tab-hash" class="tab-content">
+        <div class="tree-meta-bar">
+          <div>
+            <span style="font-weight: 700; font-size: 0.95rem;">users(id) Hash Index</span>
+            <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem;">O(1) Direct Key &rarr; [row_ids] Mapping</span>
+          </div>
+          <div class="tree-stats">
+            <div>Distinct Keys: <span id="hash-distinct-keys" class="tree-stat-val">-</span></div>
+            <div>Avg Search: <span class="tree-stat-val">O(1)</span></div>
+          </div>
+        </div>
+        <div class="hash-buckets-grid" id="hash-buckets-container">
+          <!-- Hash buckets rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Tab 3: Table Data Grid -->
+      <div id="tab-table" class="tab-content">
+        <div class="tree-meta-bar">
+          <div>
+            <span style="font-weight: 700; font-size: 0.95rem;">Table: users</span>
+            <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem;">Schema: [id, name, age]</span>
+          </div>
+          <div class="tree-stats">
+            <div>Active Rows: <span id="table-row-count" class="tree-stat-val">-</span></div>
+            <div>Total Slots: <span id="table-total-slots" class="tree-stat-val">-</span></div>
+          </div>
+        </div>
+        <div class="result-card" style="margin-top: 0;">
+          <div class="result-body" style="max-height: none;">
+            <table class="data-table" id="full-table-grid">
+              <thead>
+                <tr>
+                  <th>Row ID</th>
+                  <th>id</th>
+                  <th>name</th>
+                  <th>age</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="full-table-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Benchmark Playground -->
+      <div id="tab-benchmark" class="tab-content">
+        <div class="bench-controls-card">
+          <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.85rem;">Live Performance Benchmark</div>
+          <div class="slider-row">
+            <div class="slider-group">
+              <div class="slider-label">Dataset Size (Rows): <b id="lbl-bench-rows">10,000</b></div>
+              <input type="range" id="bench-rows" min="1000" max="50000" step="1000" value="10000" oninput="document.getElementById('lbl-bench-rows').innerText = Number(this.value).toLocaleString()" />
+            </div>
+            <div class="slider-group">
+              <div class="slider-label">Queries: <b id="lbl-bench-queries">500</b></div>
+              <input type="range" id="bench-queries" min="100" max="1000" step="50" value="500" oninput="document.getElementById('lbl-bench-queries').innerText = Number(this.value).toLocaleString()" />
+            </div>
+            <button class="btn btn-primary" style="height: 38px; align-self: flex-end;" onclick="runBenchmark()">Run Benchmark</button>
+          </div>
+        </div>
+
+        <div class="bench-results-grid" id="bench-results-container">
+          <!-- Equality Test Card -->
+          <div class="bench-card">
+            <div class="bench-card-title">
+              <span>Point Equality Lookups</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">WHERE id = X</span>
+            </div>
+            <div class="bar-comparison">
+              <div class="bar-row">
+                <div class="bar-meta">
+                  <span>Full Table Scan [O(n)]</span>
+                  <span id="bm-scan-eq-time">0.654 s</span>
+                </div>
+                <div class="bar-track"><div id="bm-scan-eq-bar" class="bar-fill bar-scan" style="width: 100%;"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-meta">
+                  <span>B+ Tree Point [O(log n)]</span>
+                  <span id="bm-bpt-eq-time">0.003 s</span>
+                </div>
+                <div class="bar-track"><div id="bm-bpt-eq-bar" class="bar-fill bar-bptree" style="width: 1%;"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-meta">
+                  <span>Hash Index [O(1)]</span>
+                  <span id="bm-hash-eq-time">0.0004 s</span>
+                </div>
+                <div class="bar-track"><div id="bm-hash-eq-bar" class="bar-fill bar-hash" style="width: 0.3%;"></div></div>
+              </div>
+            </div>
+            <div class="speedup-callout" id="bm-hash-speedup-badge">
+              <span>⚡ Hash Index Speedup:</span>
+              <span style="font-size: 1.1rem; font-family: var(--font-mono);">1,635× faster</span>
+            </div>
+          </div>
+
+          <!-- Range Test Card -->
+          <div class="bench-card">
+            <div class="bench-card-title">
+              <span>Range Lookups (Span ~200)</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">WHERE age BETWEEN L AND H</span>
+            </div>
+            <div class="bar-comparison">
+              <div class="bar-row">
+                <div class="bar-meta">
+                  <span>Full Table Scan [O(n)]</span>
+                  <span id="bm-scan-rng-time">0.710 s</span>
+                </div>
+                <div class="bar-track"><div id="bm-scan-rng-bar" class="bar-fill bar-scan" style="width: 100%;"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-meta">
+                  <span>B+ Tree Range [O(log n + k)]</span>
+                  <span id="bm-bpt-rng-time">0.007 s</span>
+                </div>
+                <div class="bar-track"><div id="bm-bpt-rng-bar" class="bar-fill bar-bptree" style="width: 2%;"></div></div>
+              </div>
+            </div>
+            <div class="speedup-callout" id="bm-bpt-speedup-badge">
+              <span>🌳 B+ Tree Range Speedup:</span>
+              <span style="font-size: 1.1rem; font-family: var(--font-mono);">101× faster</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Educational Guide -->
+      <div id="tab-guide" class="tab-content">
+        <div class="guide-card">
+          <h3>Why B+ Trees and Hash Indexes?</h3>
+          <p>
+            When a table has millions of rows, a <b>Full Table Scan</b> must inspect every single record in memory ($O(n)$ time).
+            This database engine uses two complementary index structures to eliminate linear scans:
+          </p>
+          <table class="complexity-table">
+            <thead>
+              <tr>
+                <th>Operation</th>
+                <th>Full Scan</th>
+                <th>Hash Index</th>
+                <th>B+ Tree</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Point Lookup (<code>WHERE col = X</code>)</td>
+                <td>O(n)</td>
+                <td><b style="color: #c084fc;">O(1) avg</b></td>
+                <td><b style="color: #34d399;">O(log n)</b></td>
+              </tr>
+              <tr>
+                <td>Range Scan (<code>BETWEEN A AND B</code>)</td>
+                <td>O(n)</td>
+                <td style="color: var(--rose);">✗ Not Supported</td>
+                <td><b style="color: #34d399;">O(log n + k)</b></td>
+              </tr>
+              <tr>
+                <td>Insert</td>
+                <td>O(1)</td>
+                <td>O(1) avg</td>
+                <td>O(log n)</td>
+              </tr>
+              <tr>
+                <td>Delete</td>
+                <td>O(n) + O(1)</td>
+                <td>O(1) avg</td>
+                <td>O(log n)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="guide-card">
+          <h3>The Linked Leaf Chain Secret</h3>
+          <p>
+            Notice the horizontal arrows connecting leaf nodes in the <b>B+ Tree Index</b> tab.
+            In a traditional B-Tree, range scans require recursive tree traversals up and down internal nodes.
+            In a <b>B+ Tree</b>, all data is in the leaves, and every leaf maintains a <code>next</code> pointer to its right neighbor.
+            Once the starting point is found in $O(\log n)$ steps, the engine traverses the linked list directly in $O(k)$ time!
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentDbState = null;
+
+    // Switch Visualizer Tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // Set SQL query into editor
+    function setQuery(sql) {
+      document.getElementById('sql-input').value = sql;
+      document.getElementById('sql-input').focus();
+    }
+
+    // Fetch initial database state
+    async function loadState() {
+      try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        currentDbState = data;
+        renderState(data);
+      } catch (err) {
+        console.error("Failed to load DB state:", err);
+      }
+    }
+
+    // Execute current SQL query
+    async function executeQuery() {
+      const sql = document.getElementById('sql-input').value.trim();
+      if (!sql) return;
+
+      try {
+        const res = await fetch('/api/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        const data = await res.json();
+        renderQueryResult(data);
+        if (data.state) {
+          currentDbState = data.state;
+          renderState(data.state, data.strategy);
+        }
+      } catch (err) {
+        console.error("Execution error:", err);
+      }
+    }
+
+    function explainCurrentQuery() {
+      let sql = document.getElementById('sql-input').value.trim();
+      if (!sql.toUpperCase().startsWith("EXPLAIN")) {
+        sql = "EXPLAIN " + sql;
+        document.getElementById('sql-input').value = sql;
+      }
+      executeQuery();
+    }
+
+    // Insert random users
+    async function insertRandomUsers(count = 5) {
+      try {
+        const res = await fetch('/api/insert_random', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'users', count })
+        });
+        const data = await res.json();
+        if (data.state) {
+          currentDbState = data.state;
+          renderState(data.state);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Reset database
+    async function resetDatabase() {
+      try {
+        const res = await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ max_keys: 3 })
+        });
+        const data = await res.json();
+        if (data.state) {
+          currentDbState = data.state;
+          renderState(data.state);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Run benchmark
+    async function runBenchmark() {
+      const rows = parseInt(document.getElementById('bench-rows').value);
+      const queries = parseInt(document.getElementById('bench-queries').value);
+
+      const btn = event.currentTarget;
+      btn.innerText = "Running...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/benchmark', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows, queries, range_span: 200 })
+        });
+        const json = await res.json();
+        if (json.success && json.benchmark) {
+          renderBenchmarkResults(json.benchmark);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.innerText = "Run Benchmark";
+        btn.disabled = false;
+      }
+    }
+
+    function renderBenchmarkResults(bm) {
+      const eq = bm.equality;
+      const rng = bm.range;
+
+      // Equality
+      document.getElementById('bm-scan-eq-time').innerText = eq.full_scan_sec.toFixed(4) + ' s';
+      document.getElementById('bm-bpt-eq-time').innerText = eq.bptree_sec.toFixed(4) + ' s';
+      document.getElementById('bm-hash-eq-time').innerText = eq.hash_sec.toFixed(4) + ' s';
+
+      const maxEq = Math.max(eq.full_scan_sec, 0.0001);
+      document.getElementById('bm-scan-eq-bar').style.width = '100%';
+      document.getElementById('bm-bpt-eq-bar').style.width = Math.max(1, (eq.bptree_sec / maxEq * 100)).toFixed(1) + '%';
+      document.getElementById('bm-hash-eq-bar').style.width = Math.max(0.5, (eq.hash_sec / maxEq * 100)).toFixed(1) + '%';
+      document.getElementById('bm-hash-speedup-badge').innerHTML = `<span>⚡ Hash Index Speedup:</span><span style="font-size: 1.1rem; font-family: var(--font-mono);">${eq.hash_speedup.toLocaleString()}× faster</span>`;
+
+      // Range
+      document.getElementById('bm-scan-rng-time').innerText = rng.full_scan_sec.toFixed(4) + ' s';
+      document.getElementById('bm-bpt-rng-time').innerText = rng.bptree_sec.toFixed(4) + ' s';
+
+      const maxRng = Math.max(rng.full_scan_sec, 0.0001);
+      document.getElementById('bm-scan-rng-bar').style.width = '100%';
+      document.getElementById('bm-bpt-rng-bar').style.width = Math.max(1, (rng.bptree_sec / maxRng * 100)).toFixed(1) + '%';
+      document.getElementById('bm-bpt-speedup-badge').innerHTML = `<span>🌳 B+ Tree Range Speedup:</span><span style="font-size: 1.1rem; font-family: var(--font-mono);">${rng.bptree_speedup.toLocaleString()}× faster</span>`;
+    }
+
+    // Render Query Result
+    function renderQueryResult(res) {
+      const badge = document.getElementById('plan-strategy-badge');
+      const timeBadge = document.getElementById('elapsed-badge');
+      const countBadge = document.getElementById('row-count-badge');
+      const container = document.getElementById('query-result-container');
+
+      if (res.elapsed_ms !== undefined) {
+        timeBadge.innerText = `${res.elapsed_ms.toFixed(2)} ms`;
+      }
+
+      if (!res.success) {
+        badge.className = 'strategy-badge';
+        badge.style.background = 'rgba(244, 63, 94, 0.2)';
+        badge.style.color = '#fb7185';
+        badge.innerText = 'Syntax / Execution Error';
+        container.innerHTML = `<div style="color: #fb7185; font-family: var(--font-mono); font-size: 0.8rem; padding: 0.5rem;">${res.error}</div>`;
+        countBadge.innerText = '';
+        return;
+      }
+
+      const strat = res.strategy || res.message || 'Executed';
+      badge.innerText = strat;
+      if (strat.toLowerCase().includes('hash')) {
+        badge.className = 'strategy-badge strat-hash';
+      } else if (strat.toLowerCase().includes('b+ tree')) {
+        badge.className = 'strategy-badge strat-bptree';
+      } else {
+        badge.className = 'strategy-badge strat-scan';
+      }
+
+      if (res.rows && res.rows.length > 0) {
+        countBadge.innerText = `${res.rows.length} row(s)`;
+        let html = '<table class="data-table"><thead><tr>';
+        res.schema.forEach(col => html += `<th>${col}</th>`);
+        html += '</tr></thead><tbody>';
+        res.rows.forEach(r => {
+          html += '<tr>';
+          r.forEach(v => html += `<td>${v}</td>`);
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      } else {
+        countBadge.innerText = res.rows ? '0 rows' : '';
+        container.innerHTML = `<div class="empty-state">${res.message || 'Command executed successfully.'}</div>`;
+      }
+    }
+
+    // Render State (B+ Tree, Hash, Table)
+    function renderState(state, activeStrategy) {
+      const users = state.tables['users'];
+      if (!users) return;
+
+      // 1. Table Data Grid
+      document.getElementById('table-row-count').innerText = users.row_count;
+      document.getElementById('table-total-slots').innerText = users.total_slots;
+      const tbody = document.getElementById('full-table-body');
+      let tbodyHtml = '';
+      users.rows.forEach(r => {
+        if (r.deleted) {
+          tbodyHtml += `<tr style="opacity: 0.45; text-decoration: line-through;"><td>${r.row_id}</td><td colspan="3"><i>[Deleted / Empty slot]</i></td><td><span style="color: var(--rose);">Deleted</span></td></tr>`;
+        } else {
+          tbodyHtml += `<tr><td><b>${r.row_id}</b></td><td>${r.values[0]}</td><td>${r.values[1]}</td><td>${r.values[2]}</td><td><span style="color: var(--emerald);">Active</span></td></tr>`;
+        }
+      });
+      tbody.innerHTML = tbodyHtml;
+
+      // 2. Hash Index
+      const hashIdx = users.hash_indexes['id'];
+      if (hashIdx) {
+        document.getElementById('hash-distinct-keys').innerText = hashIdx.distinct_keys;
+        const bucketsCont = document.getElementById('hash-buckets-container');
+        let bucketsHtml = '';
+        hashIdx.buckets.forEach(b => {
+          bucketsHtml += `
+            <div class="hash-bucket-card">
+              <div class="bucket-key">
+                <span>Key: ${b.key}</span>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">${b.row_ids.length} ptr(s)</span>
+              </div>
+              <div class="bucket-rowids">
+                ${b.row_ids.map(rid => `<span class="rowid-tag">&rarr; row_id: ${rid}</span>`).join('')}
+              </div>
+            </div>
+          `;
+        });
+        bucketsCont.innerHTML = bucketsHtml;
+      }
+
+      // 3. B+ Tree Index
+      const bpt = users.bptree_indexes['age'];
+      if (bpt) {
+        document.getElementById('bpt-height').innerText = bpt.height;
+        document.getElementById('bpt-maxkeys').innerText = bpt.max_keys;
+        document.getElementById('bpt-nodecount').innerText = bpt.nodes.length;
+        renderBPlusTree(bpt);
+      }
+    }
+
+    function renderBPlusTree(bpt) {
+      const container = document.getElementById('bptree-container');
+      const chainContainer = document.getElementById('leaf-chain-container');
+
+      // Group nodes by depth
+      const levels = {};
+      bpt.nodes.forEach(n => {
+        if (!levels[n.depth]) levels[n.depth] = [];
+        levels[n.depth].push(n);
+      });
+
+      let treeHtml = '';
+      Object.keys(levels).sort((a,b) => a - b).forEach(d => {
+        const isLeafLevel = (parseInt(d) === bpt.height - 1);
+        treeHtml += `<div class="tree-level">`;
+        levels[d].forEach(node => {
+          const leafClass = node.is_leaf ? 'is-leaf' : '';
+          const typeLabel = node.is_leaf ? 'Leaf Node' : (node.depth === 0 ? 'Root Node' : 'Internal Node');
+          treeHtml += `
+            <div class="tree-node-card ${leafClass}" id="tree-node-${node.id}">
+              <div class="node-header">${typeLabel} [ID: ${node.id}]</div>
+              <div class="keys-row">
+                ${node.keys.map(k => `<div class="key-slot">${k}</div>`).join('')}
+              </div>
+              ${node.is_leaf && node.values ? `
+                <div class="leaf-values-row">
+                  ${node.keys.map((k, i) => `[${node.values[i].join(',')}]`).join(' ')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        });
+        treeHtml += `</div>`;
+      });
+      container.innerHTML = treeHtml;
+
+      // Sequential leaf chain representation
+      const leafNodes = bpt.nodes.filter(n => n.is_leaf);
+      let chainHtml = `<div class="chain-label">Linked Leaf Chain:</div>`;
+      leafNodes.forEach((leaf, idx) => {
+        chainHtml += `<div class="chain-pill">[Keys: ${leaf.keys.join(', ')}]</div>`;
+        if (idx < leafNodes.length - 1) {
+          chainHtml += `<span class="chain-arrow">&rarr;</span>`;
+        }
+      });
+      chainContainer.innerHTML = chainHtml;
+    }
+
+    // Keyboard shortcut for SQL execution
+    document.getElementById('sql-input').addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        executeQuery();
+      }
+    });
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+    });
+  </script>
+</body>
+</html>
+
